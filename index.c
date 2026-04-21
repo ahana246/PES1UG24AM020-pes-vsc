@@ -203,10 +203,58 @@ int index_load(Index *index) {
 //
 // Returns 0 on success, -1 on error.
 int index_save(const Index *index) {
-    // TODO: Implement atomic index saving
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
+    if (!index) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    Index tmp = *index;
+    qsort(tmp.entries, tmp.count, sizeof(IndexEntry), cmp_index_entries);
+
+    FILE *fp = fopen(".pes/index.tmp", "w");
+    if (!fp) {
+        return -1;
+    }
+
+    for (int i = 0; i < tmp.count; i++) {
+        char hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&tmp.entries[i].hash, hex);
+
+        if (fprintf(fp, "%06o %s %ld %zu %s\n",
+                    tmp.entries[i].mode,
+                    hex,
+                    tmp.entries[i].mtime_sec,
+                    tmp.entries[i].size,
+                    tmp.entries[i].path) < 0) {
+            fclose(fp);
+            unlink(".pes/index.tmp");
+            return -1;
+        }
+    }
+
+    if (fflush(fp) != 0) {
+        fclose(fp);
+        unlink(".pes/index.tmp");
+        return -1;
+    }
+
+    if (fsync(fileno(fp)) != 0) {
+        fclose(fp);
+        unlink(".pes/index.tmp");
+        return -1;
+    }
+
+    if (fclose(fp) != 0) {
+        unlink(".pes/index.tmp");
+        return -1;
+    }
+
+    if (rename(".pes/index.tmp", ".pes/index") != 0) {
+        unlink(".pes/index.tmp");
+        return -1;
+    }
+
+    return 0;
 }
 
 // Stage a file for the next commit.
