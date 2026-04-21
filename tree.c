@@ -21,6 +21,7 @@ static int cmp_index_path(const void *a, const void *b) {
 static int build_tree(IndexEntry *entries, int count,
                       const char *prefix, ObjectID *id_out);
 
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 // ─── tree_serialize ───────────────────────────────────────────────────────────
 
 int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
